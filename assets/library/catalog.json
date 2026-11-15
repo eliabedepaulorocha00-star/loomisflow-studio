@@ -1,0 +1,11 @@
+{
+  "note": "Coleções de busca para a Biblioteca. A busca usa a API aberta do Wikimedia Commons e só mostra imagens com licença livre (domínio público / CC).",
+  "collections": [
+    { "title": "Retrato frontal", "query": "portrait frontal face photograph" },
+    { "title": "Três quartos", "query": "portrait three-quarter view face" },
+    { "title": "Perfil", "query": "profile portrait side view face" },
+    { "title": "Idosos (rugas e luz)", "query": "elderly portrait face photograph" },
+    { "title": "Luz dramática", "query": "portrait chiaroscuro lighting face" },
+    { "title": "Estudos clássicos", "query": "plaster bust sculpture head study" }
+  ]
+}
