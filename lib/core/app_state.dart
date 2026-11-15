@@ -71,7 +71,7 @@ class AppState extends ChangeNotifier {
 
       final pr = await store.create(jpeg: jpeg, shadingPng: shading, guide: guide);
       projects.insert(0, pr);
-      detectionNote = note;
+      detectionNote = note.length > 360 ? '${note.substring(0, 360)}…' : note;
       detectionProjectId = pr.id;
       await open(pr);
     } finally {

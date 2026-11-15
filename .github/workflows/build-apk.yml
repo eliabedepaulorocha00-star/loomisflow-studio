@@ -66,7 +66,7 @@ jobs:
       - name: Compilar APK
         run: |
           set +e
-          flutter build apk --release --split-per-abi > build.log 2>&1
+          flutter build apk --release --split-per-abi --no-shrink > build.log 2>&1
           code=$?
           if [ $code -ne 0 ]; then
             msg=$( { grep -nE "Error|error:|FAILURE|What went wrong|Execution failed|\.dart" build.log | head -30; echo "-----"; tail -n 25 build.log; } | cut -c1-300 | sed ':a;N;$!ba;s/\n/%0A/g')
