@@ -259,6 +259,9 @@ class _WorkbenchState extends State<_Workbench> {
     final state = AppScope.of(context);
     final pr = widget.project;
     final size = pr.guide.imageSize;
+    final reason = state.detectionProjectId == pr.id && state.detectionNote.isNotEmpty
+        ? '\nMotivo: ${state.detectionNote}'
+        : '';
     return Column(
       children: [
         Expanded(
@@ -282,11 +285,11 @@ class _WorkbenchState extends State<_Workbench> {
           ),
         ),
         if (!pr.guide.detected)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Rosto não detectado — usando as proporções clássicas do Loomis.',
-              style: TextStyle(color: Palette.textDim, fontSize: 12),
+              'Rosto não detectado — usando as proporções clássicas do Loomis.$reason',
+              style: const TextStyle(color: Palette.textDim, fontSize: 12),
             ),
           ),
         const SizedBox(height: 8),

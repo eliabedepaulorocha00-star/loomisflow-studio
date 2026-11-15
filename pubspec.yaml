@@ -19,6 +19,7 @@ dependencies:
   image: ^4.2.0
   wakelock_plus: ^1.2.8
   http: ^1.2.2
+  webview_flutter: ^4.10.0
 
 dev_dependencies:
   flutter_test:

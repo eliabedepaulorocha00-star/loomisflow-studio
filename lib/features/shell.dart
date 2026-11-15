@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/spring.dart';
 import '../core/theme.dart';
+import 'browser/browser_screen.dart';
 import 'gallery/gallery_screen.dart';
 import 'library/library_screen.dart';
 import 'studio/studio_screen.dart';
@@ -20,7 +21,8 @@ class _ShellState extends State<Shell> {
   static const _tabs = [
     (Icons.auto_awesome_outlined, Icons.auto_awesome, 'Estúdio'),
     (Icons.collections_outlined, Icons.collections, 'Referências'),
-    (Icons.timeline_outlined, Icons.timeline, 'Meu Progresso'),
+    (Icons.travel_explore_outlined, Icons.travel_explore, 'Pesquisar'),
+    (Icons.timeline_outlined, Icons.timeline, 'Progresso'),
   ];
 
   @override
@@ -31,6 +33,11 @@ class _ShellState extends State<Shell> {
         children: [
           const StudioScreen(),
           LibraryScreen(onOpenedProject: () => setState(() => _tab = 0)),
+          BrowserScreen(
+            active: _tab == 2,
+            onOpenedProject: () => setState(() => _tab = 0),
+            onLeave: () => setState(() => _tab = 0),
+          ),
           GalleryScreen(onOpenedProject: () => setState(() => _tab = 0)),
         ],
       ),

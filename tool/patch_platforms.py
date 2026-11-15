@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Aplica permissões de câmera/galeria nas pastas android/ e ios/ geradas pelo
+"""Aplica permissões (internet, câmera, galeria) nas pastas android/ e ios/ geradas pelo
 `flutter create`. Idempotente: pode rodar várias vezes."""
 import pathlib
 import re
@@ -11,14 +11,19 @@ root = pathlib.Path(__file__).resolve().parent.parent
 manifest = root / "android/app/src/main/AndroidManifest.xml"
 if manifest.exists():
     txt = manifest.read_text(encoding="utf-8")
-    if "android.permission.CAMERA" not in txt:
-        add = (
-            '    <uses-permission android:name="android.permission.CAMERA"/>\n'
-            '    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n'
-        )
+    wanted = [
+        ("android.permission.INTERNET",
+         '    <uses-permission android:name="android.permission.INTERNET"/>\n'),
+        ("android.permission.CAMERA",
+         '    <uses-permission android:name="android.permission.CAMERA"/>\n'),
+        ("android.hardware.camera",
+         '    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n'),
+    ]
+    add = "".join(line for key, line in wanted if key not in txt)
+    if add:
         txt = txt.replace("<application", add + "    <application", 1)
         manifest.write_text(txt, encoding="utf-8")
-        print("Android: permissão de câmera adicionada")
+        print("Android: permissões adicionadas")
 else:
     print("AVISO: AndroidManifest.xml não encontrado", file=sys.stderr)
 

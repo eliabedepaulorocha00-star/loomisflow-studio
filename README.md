@@ -131,3 +131,11 @@ pincelada e ao sair da tela (escrita atômica `.tmp` → rename).
 ## Licença
 
 Sugestão: MIT ou GPL-3.0 (escolha e adicione o arquivo `LICENSE`). As dependências são todas gratuitas.
+
+## Atualizações
+
+- **Aba Pesquisar** (`lib/features/browser/`): mini-navegador (WebView) com DuckDuckGo, Google, Pinterest e Unsplash.
+  Segure o dedo numa foto para usá-la como referência (ou ligue o "Modo toque"). Para estudo pessoal;
+  respeite os direitos do autor ao compartilhar.
+- Navegação inferior agora tem 4 abas: Estúdio · Referências · Pesquisar · Progresso.
+- Detecção de rosto: segunda tentativa em modo simples e, se falhar, o motivo aparece na tela do Estúdio.

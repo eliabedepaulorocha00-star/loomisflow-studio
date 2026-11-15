@@ -5,25 +5,61 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'loomis_guide.dart';
 
 /// Detecção facial 100% no aparelho (Google ML Kit, gratuito, sem rede).
+///
+/// Tenta primeiro o modo preciso (com contornos) e depois um modo simples.
+/// Quando nada é detectado, [lastNote] guarda o motivo (para diagnóstico).
 class FaceAnalyzer {
+  String lastNote = '';
+
   Future<FaceMeasurements?> analyze(String path) async {
-    final detector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableContours: true,
-        enableLandmarks: true,
-        performanceMode: FaceDetectorMode.accurate,
-        minFaceSize: 0.1,
+    final attempts = <(String, FaceDetectorOptions)>[
+      (
+        'preciso',
+        FaceDetectorOptions(
+          enableContours: true,
+          enableLandmarks: true,
+          performanceMode: FaceDetectorMode.accurate,
+          minFaceSize: 0.05,
+        ),
       ),
-    );
-    try {
-      final faces = await detector.processImage(InputImage.fromFilePath(path));
-      if (faces.isEmpty) return null;
-      faces.sort((a, b) => (b.boundingBox.width * b.boundingBox.height)
-          .compareTo(a.boundingBox.width * a.boundingBox.height));
-      return _measure(faces.first);
-    } finally {
-      await detector.close();
+      (
+        'simples',
+        FaceDetectorOptions(
+          enableLandmarks: true,
+          performanceMode: FaceDetectorMode.fast,
+          minFaceSize: 0.05,
+        ),
+      ),
+    ];
+
+    final notes = <String>[];
+    for (final (name, options) in attempts) {
+      final detector = FaceDetector(options: options);
+      try {
+        final faces =
+            await detector.processImage(InputImage.fromFilePath(path));
+        if (faces.isEmpty) {
+          notes.add('$name: 0 rostos');
+          continue;
+        }
+        final list = [...faces]..sort((a, b) =>
+            (b.boundingBox.width * b.boundingBox.height)
+                .compareTo(a.boundingBox.width * a.boundingBox.height));
+        try {
+          final m = _measure(list.first);
+          lastNote = '';
+          return m;
+        } catch (e) {
+          notes.add('$name: erro ao medir ($e)');
+        }
+      } catch (e) {
+        notes.add('$name: $e');
+      } finally {
+        await detector.close();
+      }
     }
+    lastNote = notes.join(' | ');
+    return null;
   }
 
   Offset? _lm(Face f, FaceLandmarkType t) {

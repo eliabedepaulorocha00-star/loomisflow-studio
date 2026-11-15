@@ -23,6 +23,8 @@ class AppState extends ChangeNotifier {
   ui.Image? currentShading;
 
   bool busy = false;
+  String detectionNote = '';
+  String? detectionProjectId;
   String busyLabel = '';
 
   Future<void> load() async {
@@ -45,14 +47,23 @@ class AppState extends ChangeNotifier {
       final tmp = File('${(await store.exportDir()).path}/_analyze.jpg');
       await tmp.writeAsBytes(jpeg, flush: true);
       FaceMeasurements? m;
+      var note = '';
       try {
         m = await _faces.analyze(tmp.path);
-      } catch (_) {
+        if (m == null) note = _faces.lastNote;
+      } catch (e) {
         m = null; // sem ML Kit disponível: cai no guia padrão
+        note = 'erro: $e';
       }
-      final guide = m == null
-          ? LoomisGuide.fallback(size)
-          : LoomisGuide.fromMeasurements(m, size);
+      LoomisGuide guide;
+      try {
+        guide = m == null
+            ? LoomisGuide.fallback(size)
+            : LoomisGuide.fromMeasurements(m, size);
+      } catch (e) {
+        guide = LoomisGuide.fallback(size);
+        note = 'erro ao montar a guia: $e';
+      }
 
       busyLabel = 'Gerando mapa de luz e sombra…';
       notifyListeners();
@@ -60,6 +71,8 @@ class AppState extends ChangeNotifier {
 
       final pr = await store.create(jpeg: jpeg, shadingPng: shading, guide: guide);
       projects.insert(0, pr);
+      detectionNote = note;
+      detectionProjectId = pr.id;
       await open(pr);
     } finally {
       busy = false;
