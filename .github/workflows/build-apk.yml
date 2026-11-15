@@ -56,6 +56,13 @@ jobs:
           }
           GRADLE
 
+      # chave de assinatura FIXA: sem isso cada build tem assinatura diferente
+      # e o Android não deixa atualizar o app por cima do anterior
+      - name: Usar chave de assinatura fixa
+        run: |
+          mkdir -p ~/.android
+          cp tool/debug.keystore ~/.android/debug.keystore
+
       - name: Compilar APK
         run: |
           set +e
