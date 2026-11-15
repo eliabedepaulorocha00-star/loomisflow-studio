@@ -45,13 +45,27 @@ jobs:
 
       # o lint do Android quebra dentro dos plugins (NoSuchMethodError em JavaDocParser);
       # desligamos só as tarefas lintVital* no build de CI
-      - name: Desligar lint vital do Gradle
+      - name: Desligar lint vital e R8 no Gradle
         run: |
           mkdir -p ~/.gradle/init.d
           cat > ~/.gradle/init.d/no-lint.gradle <<'GRADLE'
           allprojects {
             tasks.configureEach { t ->
               if (t.name.startsWith("lintVital")) { t.enabled = false }
+            }
+            // R8 (minificação) remove construtores que o ML Kit precisa e quebra a
+            // detecção de rosto no release (NullPointerException em getClass())
+            afterEvaluate { p ->
+              def android = p.extensions.findByName('android')
+              if (android != null && p.plugins.hasPlugin('com.android.application')) {
+                android.buildTypes.configureEach { bt ->
+                  if (bt.name == 'release') {
+                    try { bt.minifyEnabled = false } catch (Throwable e) { println("minify: ${e}") }
+                    try { bt.shrinkResources = false } catch (Throwable e) { println("shrink: ${e}") }
+                    println("R8 desligado no buildType release de ${p.name}")
+                  }
+                }
+              }
             }
           }
           GRADLE
