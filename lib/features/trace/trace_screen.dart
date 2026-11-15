@@ -141,7 +141,7 @@ class _TraceScreenState extends State<TraceScreen> {
     final pts = _p.values.toList();
     final c = pts.reduce((a, b) => a + b) / pts.length.toDouble();
     if (pts.length == 2) {
-      final d = math.max((pts[0] - pts[1]).distance, 1);
+      final d = math.max((pts[0] - pts[1]).distance, 1.0);
       final a = math.atan2(pts[1].dy - pts[0].dy, pts[1].dx - pts[0].dx);
       final ratio = d / _prevD;
       if (_moveOverlay) {
