@@ -15,7 +15,7 @@ import 'models.dart';
 import 'pose_analyzer.dart';
 import 'storage.dart';
 
-enum GuideKind { face, body }
+enum GuideKind { face, body, bodyTemplate }
 
 class _Analysis {
   _Analysis(this.guide, this.figure, this.note);
@@ -131,17 +131,28 @@ class AppState extends ChangeNotifier {
     // corpo (só se for pedido ou se a foto parecer um corpo)
     FigureGuide? figure;
     if (force != GuideKind.face) {
-      try {
-        final f = await _pose.analyze(path, size);
-        final wantBody = force == GuideKind.body ? f != null : (f != null && f.looksLikeBody);
-        if (wantBody) {
-          figure = f;
-          note = '';
-        } else if (force == GuideKind.body) {
-          note = _pose.lastNote.isEmpty ? 'pose: não foi possível montar o corpo' : _pose.lastNote;
+      FigureGuide? f;
+      if (force != GuideKind.bodyTemplate) {
+        try {
+          f = await _pose.analyze(path, size);
+        } catch (e) {
+          if (force == GuideKind.body) note = 'pose: $e';
         }
-      } catch (e) {
-        if (force == GuideKind.body) note = 'pose: $e';
+      }
+      final wantBody = force == GuideKind.body || force == GuideKind.bodyTemplate
+          ? true
+          : (f != null && f.looksLikeBody);
+      if (wantBody) {
+        if (f != null) {
+          figure = f.completed();
+          note = '';
+        } else {
+          figure = FigureGuide.template(size);
+          note = force == GuideKind.bodyTemplate
+              ? ''
+              : 'Pose não detectada — usei o modelo de corpo inteiro. '
+                  'Mova, escale e gire com "Ajustar guia" até encaixar.';
+        }
       }
     }
     return _Analysis(guide, figure, note);

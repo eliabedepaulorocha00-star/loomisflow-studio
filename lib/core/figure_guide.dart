@@ -4,11 +4,17 @@ import 'dart:ui';
 /// Passos da construção de figura (corpo), no espírito do Loomis para figura humana.
 const List<String> kBodyStepNames = [
   'Linha de ação e proporções',
-  'Cabeça e pescoço',
-  'Caixa torácica e pelve',
-  'Eixos dos membros',
+  'Eixos de equilíbrio e gravidade',
+  'Cabeça e proporções do rosto',
+  'Pescoço, ombros e clavículas',
+  'Caixa torácica e coluna',
+  'Pelve, cintura e abdômen',
+  'Articulações e eixos dos membros',
   'Volumes dos membros',
-  'Mãos e pés',
+  'Músculos principais',
+  'Mãos',
+  'Pés',
+  'Marcos anatômicos',
   'Guia de sombreamento',
 ];
 
@@ -91,6 +97,45 @@ class FigureGuide {
   }
 
   Offset get center => bounds.center;
+
+  /// Modelo padrão de corpo inteiro (8 cabeças), centralizado na imagem.
+  /// Serve quando a pose não é detectada: o usuário ajusta com os gestos.
+  factory FigureGuide.template(Size size) {
+    final hh = size.height * 0.88 / 7.75;
+    final top = size.height * 0.06;
+    final cx = size.width / 2;
+    Offset o(double dx, double y) => Offset(cx + dx * hh, top + y * hh);
+    return FigureGuide(size, {
+      'nose': o(0, 0.58),
+      'lEar': o(0.334, 0.5),
+      'rEar': o(-0.334, 0.5),
+      'lSh': o(0.95, 1.55), 'rSh': o(-0.95, 1.55),
+      'lEl': o(1.15, 3.0), 'rEl': o(-1.15, 3.0),
+      'lWr': o(1.3, 4.1), 'rWr': o(-1.3, 4.1),
+      'lHand': o(1.38, 4.8), 'rHand': o(-1.38, 4.8),
+      'lHip': o(0.55, 4.0), 'rHip': o(-0.55, 4.0),
+      'lKn': o(0.6, 5.75), 'rKn': o(-0.6, 5.75),
+      'lAn': o(0.58, 7.3), 'rAn': o(-0.58, 7.3),
+      'lFoot': o(0.75, 7.65), 'rFoot': o(-0.75, 7.65),
+    });
+  }
+
+  /// Completa pontos que o detector não viu (braços, pernas, mãos) usando
+  /// proporções médias a partir de ombros e quadris.
+  FigureGuide completed() {
+    final p = Map<String, Offset>.from(pts);
+    final down = -up;
+    final t = torsoLen;
+    for (final s in ['l', 'r']) {
+      final sh = p['${s}Sh']!, hip = p['${s}Hip']!;
+      p['${s}El'] ??= sh + down * (t * 0.6);
+      p['${s}Wr'] ??= p['${s}El']! + down * (t * 0.46);
+      p['${s}Hand'] ??= p['${s}Wr']! + down * (t * 0.28);
+      p['${s}Kn'] ??= hip + down * (t * 0.7);
+      p['${s}An'] ??= p['${s}Kn']! + down * (t * 0.62);
+    }
+    return FigureGuide(imageSize, p);
+  }
 
   Map<String, dynamic> toJson() => {
         'w': imageSize.width,

@@ -33,9 +33,23 @@ void main() {
   });
 
   test('quantidade de passos', () {
-    expect(kStepNames.length, 11);
-    expect(kStepCount, 11);
-    expect(kMaxStep, 10);
-    expect(kBodyStepNames.length, 7);
+    expect(kStepNames.length, 17);
+    expect(kStepCount, 17);
+    expect(kMaxStep, 16);
+    expect(kBodyStepNames.length, 13);
+  });
+
+  test('modelo de corpo inteiro e completação', () {
+    final t = FigureGuide.template(const Size(1000, 1600));
+    expect(FigureGuide.canBuild(t.pts), isTrue);
+    expect(t.looksLikeBody, isTrue);
+    expect(t.headH, closeTo(1600 * 0.88 / 7.75, 2));
+    final partial = FigureGuide(const Size(1000, 1600), {
+      'lSh': const Offset(600, 400), 'rSh': const Offset(400, 400),
+      'lHip': const Offset(570, 800), 'rHip': const Offset(430, 800),
+    });
+    final c = partial.completed();
+    expect(c.pts.containsKey('lKn'), isTrue);
+    expect(c.pts['lAn']!.dy, greaterThan(c.pts['lKn']!.dy));
   });
 }

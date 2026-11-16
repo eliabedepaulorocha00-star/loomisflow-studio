@@ -272,6 +272,8 @@ class _WorkbenchState extends State<_Workbench> {
         await state.reanalyze(pr, force: GuideKind.face);
       case 'body':
         await state.reanalyze(pr, force: GuideKind.body);
+      case 'template':
+        await state.reanalyze(pr, force: GuideKind.bodyTemplate);
       case 'auto':
         await state.reanalyze(pr);
     }
@@ -287,7 +289,7 @@ class _WorkbenchState extends State<_Workbench> {
         ? '\nMotivo: ${state.detectionNote}'
         : '';
     final status = isBody
-        ? 'Guia de corpo (pose detectada)'
+        ? 'Guia de corpo inteiro${reason.isNotEmpty ? reason.replaceFirst('Motivo: ', '') : ''}'
         : pr.guide.detected
             ? 'Guia de rosto'
             : 'Rosto não detectado — usando as proporções clássicas do Loomis.$reason';
@@ -362,6 +364,9 @@ class _WorkbenchState extends State<_Workbench> {
                                   value: 'face', child: Text('Usar guia de rosto')),
                               const PopupMenuItem(
                                   value: 'body', child: Text('Usar guia de corpo')),
+                              const PopupMenuItem(
+                                  value: 'template',
+                                  child: Text('Corpo inteiro (modelo para ajustar)')),
                               const PopupMenuItem(
                                   value: 'auto', child: Text('Reanalisar automaticamente')),
                             ],
