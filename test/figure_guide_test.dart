@@ -52,4 +52,14 @@ void main() {
     expect(c.pts.containsKey('lKn'), isTrue);
     expect(c.pts['lAn']!.dy, greaterThan(c.pts['lKn']!.dy));
   });
+
+  test('todos os estilos montam e serializam', () {
+    for (final s in BodyStyle.values) {
+      final t = FigureGuide.template(const Size(1000, 1600), style: s);
+      expect(FigureGuide.canBuild(t.pts), isTrue);
+      final back = FigureGuide.fromJson(t.toJson());
+      expect(back.style, s);
+      expect(back.isTemplate, isTrue);
+    }
+  });
 }

@@ -35,6 +35,9 @@ class AppState extends ChangeNotifier {
   ui.Image? currentReference;
   ui.Image? currentShading;
 
+  /// Estilo de corpo usado ao criar guias de corpo (masculino, feminino, anime…).
+  BodyStyle bodyStyle = BodyStyle.male;
+
   bool busy = false;
   String busyLabel = '';
   String detectionNote = '';
@@ -81,12 +84,13 @@ class AppState extends ChangeNotifier {
   }
 
   /// Refaz a análise de um projeto já salvo. [force] escolhe rosto ou corpo.
-  Future<void> reanalyze(Project pr, {GuideKind? force}) async {
+  Future<void> reanalyze(Project pr, {GuideKind? force, BodyStyle? style}) async {
     busy = true;
     busyLabel = 'Reanalisando…';
     notifyListeners();
     try {
-      final a = await _analyze(pr.referencePath, pr.guide.imageSize, force: force);
+      final a = await _analyze(pr.referencePath, pr.guide.imageSize,
+          force: force, style: style);
       pr.guide = a.guide;
       pr.figure = a.figure;
       pr.resetAdjust();
@@ -105,11 +109,27 @@ class AppState extends ChangeNotifier {
     detectionProjectId = pr.id;
   }
 
-  Future<_Analysis> _analyze(String path, Size size, {GuideKind? force}) async {
+  /// Troca o estilo do corpo (masculino/feminino/anime). Se o projeto ainda não
+  /// tem guia de corpo, cria uma.
+  Future<void> setBodyStyle(Project pr, BodyStyle s) async {
+    bodyStyle = s;
+    final f = pr.figure;
+    if (f != null && !f.isTemplate) {
+      pr.figure = f.withStyle(s);
+      await store.saveMeta(pr);
+      notifyListeners();
+      return;
+    }
+    await reanalyze(pr, force: GuideKind.body, style: s);
+  }
+
+  Future<_Analysis> _analyze(String path, Size size,
+      {GuideKind? force, BodyStyle? style}) async {
+    final st = style ?? bodyStyle;
     // rosto
     FaceMeasurements? m;
     var note = '';
-    if (force != GuideKind.body) {
+    if (force != GuideKind.bodyTemplate) {
       try {
         m = await _faces.analyze(path);
         if (m == null) note = _faces.lastNote;
@@ -144,10 +164,18 @@ class AppState extends ChangeNotifier {
           : (f != null && f.looksLikeBody);
       if (wantBody) {
         if (f != null) {
-          figure = f.completed();
+          figure = f.completed().withStyle(st);
           note = '';
+        } else if (force != GuideKind.bodyTemplate && m != null && guide.detected) {
+          // pose não achada, mas o rosto sim: o corpo nasce a partir da cabeça
+          final top = guide.center.dy - guide.radius;
+          final hh = guide.chinY - top;
+          final hc = guide.toImage(Offset(guide.center.dx, (guide.chinY + top) / 2));
+          figure = FigureGuide.template(size, style: st, headCenter: hc, headH: hh);
+          note = 'Pose não detectada — montei o corpo a partir do rosto. '
+              'Use "Ajustar guia" para encaixar.';
         } else {
-          figure = FigureGuide.template(size);
+          figure = FigureGuide.template(size, style: st);
           note = force == GuideKind.bodyTemplate
               ? ''
               : 'Pose não detectada — usei o modelo de corpo inteiro. '

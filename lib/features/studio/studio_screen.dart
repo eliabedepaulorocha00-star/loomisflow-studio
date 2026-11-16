@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/app_state.dart';
+import '../../core/figure_guide.dart';
 import '../../core/guide_renderer.dart';
 import '../../core/models.dart';
 import '../../core/spring.dart';
@@ -262,6 +263,10 @@ class _WorkbenchState extends State<_Workbench> {
 
   Future<void> _menu(String v, AppState state) async {
     final pr = widget.project;
+    if (v.startsWith('style:')) {
+      await state.setBodyStyle(pr, BodyStyle.values[int.parse(v.substring(6))]);
+      return;
+    }
     switch (v) {
       case 'adjust':
         setState(() => _adjusting = !_adjusting);
@@ -289,7 +294,7 @@ class _WorkbenchState extends State<_Workbench> {
         ? '\nMotivo: ${state.detectionNote}'
         : '';
     final status = isBody
-        ? 'Guia de corpo inteiro${reason.isNotEmpty ? reason.replaceFirst('Motivo: ', '') : ''}'
+        ? 'Guia de corpo ${pr.figure!.style.label.toLowerCase()}${reason.isNotEmpty ? reason.replaceFirst('Motivo: ', '') : ''}'
         : pr.guide.detected
             ? 'Guia de rosto'
             : 'Rosto não detectado — usando as proporções clássicas do Loomis.$reason';
@@ -364,6 +369,13 @@ class _WorkbenchState extends State<_Workbench> {
                                   value: 'face', child: Text('Usar guia de rosto')),
                               const PopupMenuItem(
                                   value: 'body', child: Text('Usar guia de corpo')),
+                              for (final s in BodyStyle.values)
+                                PopupMenuItem(
+                                  value: 'style:${s.index}',
+                                  child: Text(
+                                      'Corpo ${s.label.toLowerCase()}'
+                                      '${pr.figure?.style == s ? "  ✓" : ""}'),
+                                ),
                               const PopupMenuItem(
                                   value: 'template',
                                   child: Text('Corpo inteiro (modelo para ajustar)')),

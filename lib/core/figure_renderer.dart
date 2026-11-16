@@ -39,6 +39,7 @@ void paintFigure(
   final sLat = (lSh - rSh) / f.shoulderWidth; // lateral dos ombros
   final hLat = (lHip - rHip) / f.hipWidth; // lateral dos quadris
   final b = f.bounds;
+  final sp = f.style.spec;
 
   double bottomY() {
     var y = b.bottom;
@@ -120,6 +121,23 @@ void paintFigure(
       canvas.drawLine(Offset(-hw / 2, y * hh), Offset(hw / 2, y * hh), stroke(a2 * (y == 0 ? 0.7 : 0.45)));
     }
     canvas.drawLine(Offset(-hw / 2, -hh * 0.2), Offset(hw / 2, -hh * 0.2), stroke(a2 * 0.3));
+    // olhos (maiores e mais baixos no anime) e queixo pontudo
+    for (final s in [-1.0, 1.0]) {
+      canvas.drawOval(
+        Rect.fromCenter(
+            center: Offset(s * hw * 0.22, sp.eyeY * hh),
+            width: sp.eyeW * hh,
+            height: sp.eyeH * hh * 1.6),
+        stroke(a2 * 0.55, w: 0.9),
+      );
+    }
+    if (sp.jaw > 0.5) {
+      final jawPath = Path()
+        ..moveTo(-hw * 0.5, hh * 0.05)
+        ..lineTo(0, hh * 0.5)
+        ..lineTo(hw * 0.5, hh * 0.05);
+      canvas.drawPath(jawPath, stroke(a2 * 0.6));
+    }
     canvas.restore();
   }
 
@@ -153,7 +171,7 @@ void paintFigure(
   if (a4 > 0.01) {
     final rot = math.atan2(axis.dy, axis.dx) - math.pi / 2;
     final ribC = sMid + axis * 0.34;
-    final rw = f.shoulderWidth * 0.78, rh = f.torsoLen * 0.62;
+    final rw = f.shoulderWidth * sp.ribW, rh = f.torsoLen * sp.ribH;
     canvas.save();
     canvas.translate(ribC.dx, ribC.dy);
     canvas.rotate(rot);
@@ -185,12 +203,12 @@ void paintFigure(
     canvas.translate(pelC.dx, pelC.dy);
     canvas.rotate(f.hipTilt);
     final pel = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset.zero, width: f.hipWidth * 1.35, height: f.torsoLen * 0.28),
+      Rect.fromCenter(center: Offset.zero, width: f.hipWidth * sp.pelW, height: f.torsoLen * 0.28),
       Radius.circular(f.torsoLen * 0.1),
     );
     canvas.drawRRect(pel, fill(a5 * 0.07));
     canvas.drawRRect(pel, stroke(a5, w: 1.2));
-    final w = f.hipWidth * 1.35;
+    final w = f.hipWidth * sp.pelW;
     for (final s in [-1.0, 1.0]) {
       // crista ilíaca
       final crest = Path()
@@ -203,19 +221,27 @@ void paintFigure(
     final ribB = sMid + axis * 0.62;
     final pelT = hMid - axis * 0.12;
     for (final s in [-1.0, 1.0]) {
-      canvas.drawLine(ribB + sLat * (s * f.shoulderWidth * 0.3),
+      canvas.drawLine(ribB + sLat * (s * f.shoulderWidth * sp.waist),
           pelT + hLat * (s * f.hipWidth * 0.55), stroke(a5 * 0.8));
+      // silhueta do tronco: ombro → cintura → quadril (V no masculino, ampulheta no feminino)
+      final tip = s < 0 ? rSh : lSh;
+      final hp = (s < 0 ? rHip : lHip) + hLat * (s * f.hipWidth * (sp.pelW - 1) * 0.5);
+      final waistPt = ribB + sLat * (s * f.shoulderWidth * sp.waist * 1.15);
+      final sil = Path()
+        ..moveTo(tip.dx, tip.dy)
+        ..quadraticBezierTo(waistPt.dx, waistPt.dy, hp.dx, hp.dy);
+      canvas.drawPath(sil, stroke(a5 * 0.5, w: 0.9));
     }
-    canvas.drawLine(ribB + sLat * (-f.shoulderWidth * 0.3), ribB + sLat * (f.shoulderWidth * 0.3),
+    canvas.drawLine(ribB + sLat * (-f.shoulderWidth * sp.waist), ribB + sLat * (f.shoulderWidth * sp.waist),
         stroke(a5 * 0.4));
   }
 
   // segmentos dos membros: [a, b, largura relativa à cabeça, posição do volume]
   final segs = <(String, String, double, double)>[
-    ('lSh', 'lEl', 0.40, 0.3), ('lEl', 'lWr', 0.32, 0.25),
-    ('rSh', 'rEl', 0.40, 0.3), ('rEl', 'rWr', 0.32, 0.25),
-    ('lHip', 'lKn', 0.62, 0.38), ('lKn', 'lAn', 0.46, 0.3),
-    ('rHip', 'rKn', 0.62, 0.38), ('rKn', 'rAn', 0.46, 0.3),
+    ('lSh', 'lEl', sp.arm, 0.3), ('lEl', 'lWr', sp.fore, 0.25),
+    ('rSh', 'rEl', sp.arm, 0.3), ('rEl', 'rWr', sp.fore, 0.25),
+    ('lHip', 'lKn', sp.thigh, 0.38), ('lKn', 'lAn', sp.calf, 0.3),
+    ('rHip', 'rKn', sp.thigh, 0.38), ('rKn', 'rAn', sp.calf, 0.3),
   ];
 
   // --- 6: articulações e eixos dos membros ---
@@ -254,7 +280,8 @@ void paintFigure(
     for (final s in segs) {
       final a = pts[s.$1], c = pts[s.$2];
       if (a != null && c != null) {
-        _spindle(canvas, a, c, hh * s.$3 * 1.1, s.$4, stroke(a8 * 0.9), fill(a8 * 0.06));
+        _spindle(canvas, a, c, hh * s.$3 * (1.0 + 0.1 * sp.muscle), s.$4,
+            stroke(a8 * (0.5 + 0.4 * sp.muscle)), fill(a8 * 0.06));
       }
     }
     // peitorais e deltoides
@@ -266,8 +293,14 @@ void paintFigure(
         ..moveTo(sternum.dx, sternum.dy)
         ..quadraticBezierTo(low.dx, low.dy, tip.dx - axis.dx * 0.0 + sLat.dx * s * -hh * 0.2,
             tip.dy + axis.dy * 0.18);
-      canvas.drawPath(pec, stroke(a8 * 0.6));
-      canvas.drawCircle(tip, hh * 0.34, stroke(a8 * 0.5));
+      if (sp.muscle >= 0.5 && !sp.bust) canvas.drawPath(pec, stroke(a8 * 0.6));
+      canvas.drawCircle(tip, hh * 0.34 * (0.6 + 0.4 * sp.muscle), stroke(a8 * 0.5));
+      if (sp.bust) {
+        // seios: círculos de volume sobre a caixa torácica
+        final bc = sMid + axis * 0.24 + sLat * (s * f.shoulderWidth * 0.2);
+        canvas.drawCircle(bc, f.shoulderWidth * 0.17, stroke(a8 * 0.75));
+        canvas.drawCircle(bc, f.shoulderWidth * 0.17, fill(a8 * 0.05));
+      }
     }
     // linha do esterno ao umbigo (linha alba)
     canvas.drawLine(sMid + axis * 0.1, sMid + axis * 0.64, stroke(a8 * 0.3));
@@ -291,7 +324,7 @@ void paintFigure(
       }
       var len = hh * 0.72;
       if (hand != null) len = (hand - wr).distance.clamp(hh * 0.45, hh * 0.9).toDouble();
-      _hand(canvas, wr, dir, len, hh, sMid, stroke(a9), fill(a9 * 0.1), a9);
+      _hand(canvas, wr, dir, len, hh * sp.hand, sMid, stroke(a9), fill(a9 * 0.1), a9);
     }
   }
 
@@ -312,7 +345,7 @@ void paintFigure(
       }
       var len = hh * 0.95;
       if (foot != null) len = (foot - an).distance.clamp(hh * 0.5, hh * 1.1).toDouble();
-      _foot(canvas, an, dir, len, hh, stroke(a10), fill(a10 * 0.1), a10);
+      _foot(canvas, an, dir, len, hh * sp.foot, stroke(a10), fill(a10 * 0.1), a10);
     }
   }
 

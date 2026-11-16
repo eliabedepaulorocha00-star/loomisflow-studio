@@ -58,3 +58,16 @@ Uint8List buildShadingPng(Uint8List jpeg) {
   }
   return Uint8List.fromList(img.encodePng(out));
 }
+
+/// Devolve a imagem com 25% de margem cinza em cada lado (JPEG). O detector de
+/// pose acha melhor corpos cortados nas bordas quando há espaço em volta.
+Uint8List padForPose(Uint8List jpeg) {
+  final src = img.decodeImage(jpeg);
+  if (src == null) throw const FormatException('Imagem inválida');
+  final padX = (src.width * 0.25).round();
+  final padY = (src.height * 0.25).round();
+  final out = img.Image(width: src.width + padX * 2, height: src.height + padY * 2);
+  img.fill(out, color: img.ColorRgb8(128, 128, 128));
+  img.compositeImage(out, src, dstX: padX, dstY: padY);
+  return Uint8List.fromList(img.encodeJpg(out, quality: 90));
+}
