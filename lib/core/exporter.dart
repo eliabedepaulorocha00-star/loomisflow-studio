@@ -140,6 +140,10 @@ class Exporter {
       height: h,
       fps: fps,
       videoBitrate: 2500000,
+      profileLevel: ProfileLevel.values.firstWhere(
+        (v) => v.name == 'any',
+        orElse: () => ProfileLevel.values.first,
+      ),
       audioChannels: 0,
       audioBitrate: 0,
       sampleRate: 0,
