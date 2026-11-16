@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'figure_guide.dart';
 import 'loomis_guide.dart';
 import 'models.dart';
 
@@ -38,16 +39,24 @@ class ProjectStore {
       final metaFile = File(p.join(dir, 'meta.json'));
       if (!await metaFile.exists()) return null;
       final j = jsonDecode(await metaFile.readAsString()) as Map<String, dynamic>;
+      final adj = ((j['adj'] as List?) ?? const [0, 0, 1, 0]).cast<num>();
+      final fig = j['figure'];
       final pr = Project(
         id: j['id'] as String,
         title: j['title'] as String,
         createdAt: DateTime.parse(j['created'] as String),
         updatedAt: DateTime.parse(j['updated'] as String),
         guide: LoomisGuide.fromJson(j['guide'] as Map<String, dynamic>),
+        figure: fig == null ? null : FigureGuide.fromJson(fig as Map<String, dynamic>),
         dir: dir,
         step: (j['step'] as num?)?.toDouble() ?? 0,
         paper: (j['paper'] as int?) ?? 0xFFF5F2EA,
+        adjDx: adj[0].toDouble(),
+        adjDy: adj[1].toDouble(),
+        adjScale: adj[2].toDouble(),
+        adjRot: adj[3].toDouble(),
       );
+      if (pr.step > pr.maxStep) pr.step = pr.maxStep;
       final sf = File(pr.strokesPath);
       if (await sf.exists()) {
         final list = jsonDecode(await sf.readAsString()) as List;
@@ -65,6 +74,7 @@ class ProjectStore {
     required Uint8List jpeg,
     required Uint8List shadingPng,
     required LoomisGuide guide,
+    FigureGuide? figure,
     String? title,
   }) async {
     final now = DateTime.now();
@@ -73,11 +83,13 @@ class ProjectStore {
     await Directory(dir).create(recursive: true);
     final pr = Project(
       id: id,
-      title: title ?? 'Retrato ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')} '
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+      title: title ??
+          'Retrato ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')} '
+              '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
       createdAt: now,
       updatedAt: now,
       guide: guide,
+      figure: figure,
       dir: dir,
     );
     await File(pr.referencePath).writeAsBytes(jpeg, flush: true);

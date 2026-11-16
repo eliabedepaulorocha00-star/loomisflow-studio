@@ -222,6 +222,7 @@ class _ArScreenState extends State<ArScreen> with WidgetsBindingObserver {
               children: [
                 StepSlider(
                   value: _step,
+                  names: pr.stepNames,
                   onChanged: (v) => setState(() => _step = v),
                 ),
                 _row('Opacidade da guia', _guideOpacity,
@@ -367,9 +368,9 @@ class _ArPainter extends CustomPainter {
       );
     }
     // linhas finas e luminosas para ficarem visíveis sobre o papel branco
-    paintGuide(
+    paintProjectGuide(
       canvas,
-      g,
+      project,
       step,
       color: const Color(0xFF00E5A8),
       opacity: guideOpacity,

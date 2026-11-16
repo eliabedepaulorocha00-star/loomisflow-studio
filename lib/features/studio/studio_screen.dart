@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/app_state.dart';
 import '../../core/guide_renderer.dart';
-import '../../core/loomis_guide.dart';
 import '../../core/models.dart';
 import '../../core/spring.dart';
 import '../../core/theme.dart';
@@ -20,6 +19,7 @@ class StudioScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
+    final cur = state.current;
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -33,7 +33,7 @@ class StudioScreen extends StatelessWidget {
                   child: Text('Estúdio',
                       style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
                 ),
-                if (state.current != null)
+                if (cur != null)
                   PressableScale(
                     onTap: () => _showSourceSheet(context),
                     child: const Padding(
@@ -51,11 +51,11 @@ class StudioScreen extends StatelessWidget {
                 switchInCurve: Curves.easeOutCubic,
                 child: state.busy
                     ? _Busy(label: state.busyLabel, key: const ValueKey('busy'))
-                    : state.current == null
+                    : cur == null
                         ? const _EmptyStudio(key: ValueKey('empty'))
                         : _Workbench(
-                            key: ValueKey(state.current!.id),
-                            project: state.current!,
+                            key: ValueKey('${cur.id}-${cur.figure != null}'),
+                            project: cur,
                           ),
               ),
             ),
@@ -123,43 +123,47 @@ class _EmptyStudio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Palette.accent.withValues(alpha: 0.6), width: 2),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border:
+                    Border.all(color: Palette.accent.withValues(alpha: 0.6), width: 2),
+              ),
+              child: CustomPaint(painter: _LogoPainter()),
             ),
-            child: CustomPaint(painter: _LogoPainter()),
-          ),
-          const SizedBox(height: 24),
-          const Text('Transforme qualquer retrato\nem um passo a passo Loomis',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3)),
-          const SizedBox(height: 8),
-          const Text('Tudo roda no seu aparelho. Grátis e sem limites.',
-              style: TextStyle(color: Palette.textDim)),
-          const SizedBox(height: 28),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _BigButton(
-                icon: Icons.photo_library_outlined,
-                label: 'Galeria',
-                onTap: () => pickAndCreate(context, ImageSource.gallery),
-              ),
-              const SizedBox(width: 14),
-              _BigButton(
-                icon: Icons.photo_camera_outlined,
-                label: 'Câmera',
-                onTap: () => pickAndCreate(context, ImageSource.camera),
-              ),
-            ],
-          ),
-        ],
+            const SizedBox(height: 24),
+            const Text('Transforme qualquer foto\nem um passo a passo de construção',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.3)),
+            const SizedBox(height: 8),
+            const Text('Rosto (Loomis) ou corpo inteiro. Tudo roda no seu aparelho.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Palette.textDim)),
+            const SizedBox(height: 28),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _BigButton(
+                  icon: Icons.photo_library_outlined,
+                  label: 'Galeria',
+                  onTap: () => pickAndCreate(context, ImageSource.gallery),
+                ),
+                const SizedBox(width: 14),
+                _BigButton(
+                  icon: Icons.photo_camera_outlined,
+                  label: 'Câmera',
+                  onTap: () => pickAndCreate(context, ImageSource.camera),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -246,12 +250,31 @@ class _Workbench extends StatefulWidget {
 }
 
 class _WorkbenchState extends State<_Workbench> {
-  late double _step = widget.project.step;
+  late double _step = math.min(widget.project.step, widget.project.maxStep);
+  bool _adjusting = false;
+  double _s0Scale = 1, _s0Rot = 0;
 
   void _syncAfterReturn(AppState state, Project pr) {
     if (!mounted) return;
-    setState(() => _step = pr.step);
+    setState(() => _step = math.min(pr.step, pr.maxStep));
     state.touch(); // atualiza contagem de traços na galeria
+  }
+
+  Future<void> _menu(String v, AppState state) async {
+    final pr = widget.project;
+    switch (v) {
+      case 'adjust':
+        setState(() => _adjusting = !_adjusting);
+      case 'reset':
+        setState(pr.resetAdjust);
+        await state.saveStep(pr);
+      case 'face':
+        await state.reanalyze(pr, force: GuideKind.face);
+      case 'body':
+        await state.reanalyze(pr, force: GuideKind.body);
+      case 'auto':
+        await state.reanalyze(pr);
+    }
   }
 
   @override
@@ -259,9 +282,15 @@ class _WorkbenchState extends State<_Workbench> {
     final state = AppScope.of(context);
     final pr = widget.project;
     final size = pr.guide.imageSize;
+    final isBody = pr.figure != null;
     final reason = state.detectionProjectId == pr.id && state.detectionNote.isNotEmpty
         ? '\nMotivo: ${state.detectionNote}'
         : '';
+    final status = isBody
+        ? 'Guia de corpo (pose detectada)'
+        : pr.guide.detected
+            ? 'Guia de rosto'
+            : 'Rosto não detectado — usando as proporções clássicas do Loomis.$reason';
     return Column(
       children: [
         Expanded(
@@ -269,32 +298,129 @@ class _WorkbenchState extends State<_Workbench> {
             borderRadius: BorderRadius.circular(22),
             child: Container(
               color: Palette.surface,
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: _PreviewPainter(
-                    guide: pr.guide,
-                    imageSize: size,
-                    step: _step,
-                    reference: state.currentReference,
-                    shading: state.currentShading,
-                  ),
-                ),
-              ),
+              child: LayoutBuilder(builder: (context, box) {
+                final pad = 10.0;
+                final s = math.min((box.maxWidth - pad * 2) / size.width,
+                    (box.maxHeight - pad * 2) / size.height);
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onScaleStart: _adjusting
+                            ? (d) {
+                                _s0Scale = pr.adjScale;
+                                _s0Rot = pr.adjRot;
+                              }
+                            : null,
+                        onScaleUpdate: _adjusting
+                            ? (d) => setState(() {
+                                  pr.adjDx += d.focalPointDelta.dx / s;
+                                  pr.adjDy += d.focalPointDelta.dy / s;
+                                  pr.adjScale =
+                                      (_s0Scale * d.scale).clamp(0.3, 4.0).toDouble();
+                                  pr.adjRot = _s0Rot + d.rotation;
+                                })
+                            : null,
+                        onScaleEnd: _adjusting ? (_) => state.saveStep(pr) : null,
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            size: Size.infinite,
+                            painter: _PreviewPainter(
+                              project: pr,
+                              step: _step,
+                              reference: state.currentReference,
+                              shading: state.currentShading,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Row(
+                        children: [
+                          _RoundButton(
+                            icon: Icons.open_with_rounded,
+                            active: _adjusting,
+                            tooltip: 'Ajustar a guia à mão',
+                            onTap: () => setState(() => _adjusting = !_adjusting),
+                          ),
+                          const SizedBox(width: 8),
+                          PopupMenuButton<String>(
+                            tooltip: 'Opções da guia',
+                            color: Palette.surfaceHi,
+                            onSelected: (v) => _menu(v, state),
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(
+                                  value: 'adjust', child: Text('Ajustar guia à mão')),
+                              if (pr.hasAdjust)
+                                const PopupMenuItem(
+                                    value: 'reset', child: Text('Restaurar ajuste')),
+                              const PopupMenuItem(
+                                  value: 'face', child: Text('Usar guia de rosto')),
+                              const PopupMenuItem(
+                                  value: 'body', child: Text('Usar guia de corpo')),
+                              const PopupMenuItem(
+                                  value: 'auto', child: Text('Reanalisar automaticamente')),
+                            ],
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Palette.surfaceHi.withValues(alpha: 0.9),
+                                border: Border.all(color: Palette.line),
+                              ),
+                              child: const Icon(Icons.more_vert_rounded, size: 20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_adjusting)
+                      Positioned(
+                        left: 12,
+                        bottom: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Palette.surfaceHi.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Arraste, pince e gire para encaixar a guia',
+                                  style: TextStyle(fontSize: 12.5),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => setState(() => _adjusting = false),
+                                child: const Text('Concluir'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              }),
             ),
           ),
         ),
-        if (!pr.guide.detected)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'Rosto não detectado — usando as proporções clássicas do Loomis.$reason',
-              style: const TextStyle(color: Palette.textDim, fontSize: 12),
-            ),
-          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(status,
+              style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+        ),
         const SizedBox(height: 8),
         StepSlider(
           value: _step,
+          names: pr.stepNames,
           onChanged: (v) => setState(() => _step = v),
           onEnd: (v) {
             pr.step = v;
@@ -334,6 +460,39 @@ class _WorkbenchState extends State<_Workbench> {
         ),
         const SizedBox(height: 10),
       ],
+    );
+  }
+}
+
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+    this.active = false,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final String tooltip;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: active ? Palette.accent : Palette.surfaceHi.withValues(alpha: 0.9),
+            border: Border.all(color: Palette.line),
+          ),
+          child: Icon(icon, size: 19, color: active ? Palette.bg : Palette.text),
+        ),
+      ),
     );
   }
 }
@@ -380,22 +539,22 @@ class _ActionButton extends StatelessWidget {
 
 class _PreviewPainter extends CustomPainter {
   _PreviewPainter({
-    required this.guide,
-    required this.imageSize,
+    required this.project,
     required this.step,
     required this.reference,
     required this.shading,
-  });
+  }) : adjSig = project.adjSig;
 
-  final LoomisGuide guide;
-  final Size imageSize;
+  final Project project;
   final double step;
   final ui.Image? reference;
   final ui.Image? shading;
+  final int adjSig;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final pad = 10.0;
+    final imageSize = project.guide.imageSize;
+    const pad = 10.0;
     final avail = Size(size.width - pad * 2, size.height - pad * 2);
     final s = math.min(avail.width / imageSize.width, avail.height / imageSize.height);
     final dx = (size.width - imageSize.width * s) / 2;
@@ -406,8 +565,8 @@ class _PreviewPainter extends CustomPainter {
 
     final dst = Offset.zero & imageSize;
     if (reference != null) {
-      // a referência escurece conforme o guia vai ganhando detalhe
-      final a = (0.75 - step * 0.06).clamp(0.3, 0.75);
+      // a foto escurece conforme a guia ganha detalhe
+      final a = (0.75 - step * 0.045).clamp(0.3, 0.75);
       canvas.drawImageRect(
         reference!,
         Rect.fromLTWH(0, 0, reference!.width.toDouble(), reference!.height.toDouble()),
@@ -417,8 +576,8 @@ class _PreviewPainter extends CustomPainter {
           ..color = Color.fromRGBO(255, 255, 255, a),
       );
     }
-    paintGuide(canvas, guide, step,
-        color: Palette.guide, lineScale: 1 / s * 1.0, shading: shading);
+    paintProjectGuide(canvas, project, step,
+        color: Palette.guide, lineScale: 1 / s, shading: shading);
     canvas.restore();
   }
 
@@ -427,8 +586,6 @@ class _PreviewPainter extends CustomPainter {
       old.step != step ||
       old.reference != reference ||
       old.shading != shading ||
-      old.guide != guide;
+      old.adjSig != adjSig ||
+      old.project != project;
 }
-
-/// Tipo auxiliar usado só para manter `kStepNames` referenciado em testes de UI.
-String stepLabel(double v) => kStepNames[v.round().clamp(0, kStepCount - 1)];

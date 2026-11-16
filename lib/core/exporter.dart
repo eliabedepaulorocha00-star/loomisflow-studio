@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:ui' show Offset, Rect;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
@@ -101,6 +103,80 @@ class Exporter {
     final dir = await ProjectStore.instance.exportDir();
     final file = File(p.join(dir.path, 'loomisflow_${pr.id}_timelapse.gif'));
     return file.writeAsBytes(gif, flush: true);
+  }
+
+  /// Time-lapse em MP4 (H.264) pelo codificador nativo do aparelho.
+  /// Se o aparelho recusar o codificador, cai para GIF animado.
+  static Future<File> timelapse(Project pr,
+      {void Function(double)? onProgress}) async {
+    try {
+      return await timelapseMp4(pr, onProgress: onProgress);
+    } on StateError {
+      rethrow;
+    } catch (_) {
+      return timelapseGif(pr, onProgress: onProgress);
+    }
+  }
+
+  static Future<File> timelapseMp4(Project pr,
+      {int maxFrames = 90,
+      int width = 720,
+      int fps = 12,
+      void Function(double)? onProgress}) async {
+    if (pr.strokes.isEmpty) {
+      throw StateError('Desenhe algo no decalque antes de exportar.');
+    }
+    final imgW = pr.guide.imageSize.width, imgH = pr.guide.imageSize.height;
+    // dimensões múltiplas de 16: os codificadores de hardware exigem isso
+    final w = math.max(16, (width ~/ 16) * 16);
+    final h = math.max(16, ((w * imgH / imgW) ~/ 16) * 16);
+    final dir = await ProjectStore.instance.exportDir();
+    final path = p.join(dir.path, 'loomisflow_${pr.id}_timelapse.mp4');
+    final out = File(path);
+    if (await out.exists()) await out.delete();
+
+    await FlutterQuickVideoEncoder.setup(
+      width: w,
+      height: h,
+      fps: fps,
+      videoBitrate: 2500000,
+      audioChannels: 0,
+      audioBitrate: 0,
+      sampleRate: 0,
+      filepath: path,
+    );
+    try {
+      final n = pr.strokes.length;
+      final frames = math.min(n, maxFrames);
+      for (var i = 1; i <= frames; i++) {
+        final count = (n * i / frames).ceil();
+        final im = await _frame(pr, count, w, h);
+        final data = await im.toByteData(format: ui.ImageByteFormat.rawRgba);
+        final bytes = data!.buffer.asUint8List();
+        await FlutterQuickVideoEncoder.appendVideoFrame(bytes);
+        if (i == frames) {
+          // segura o último quadro por ~1,5 s
+          for (var k = 0; k < (fps * 1.5).round(); k++) {
+            await FlutterQuickVideoEncoder.appendVideoFrame(bytes);
+          }
+        }
+        onProgress?.call(i / frames * 0.95);
+      }
+    } finally {
+      await FlutterQuickVideoEncoder.finish();
+    }
+    onProgress?.call(1);
+    return out;
+  }
+
+  static Future<ui.Image> _frame(Project pr, int count, int w, int h) {
+    final size = pr.guide.imageSize;
+    final rec = ui.PictureRecorder();
+    final canvas = ui.Canvas(rec);
+    canvas.scale(w / size.width, h / size.height);
+    canvas.drawRect(Offset.zero & size, ui.Paint()..color = ui.Color(pr.paper));
+    paintStrokes(canvas, pr.strokes.take(count).toList());
+    return rec.endRecording().toImage(w, h);
   }
 }
 

@@ -415,6 +415,7 @@ class _TraceScreenState extends State<TraceScreen> {
             children: [
               StepSlider(
                 value: m.step,
+                names: m.project.stepNames,
                 onChanged: (v) {
                   m.step = v;
                   m.changed();

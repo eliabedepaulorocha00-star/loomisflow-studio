@@ -5,7 +5,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_state.dart';
 import '../../core/exporter.dart';
-import '../../core/loomis_guide.dart';
 import '../../core/models.dart';
 import '../../core/spring.dart';
 import '../../core/theme.dart';
@@ -123,7 +122,7 @@ class _ProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = (project.step / kMaxStep).clamp(0.0, 1.0);
+    final progress = (project.step / project.maxStep).clamp(0.0, 1.0);
     return PressableScale(
       onTap: onTap,
       pressedScale: 0.96,
@@ -285,7 +284,15 @@ class _ProjectSheetState extends State<_ProjectSheet> {
             }),
             _action(Icons.compare_rounded, 'Compartilhar imagem comparativa (PNG)',
                 _working ? null : () => _export(() => Exporter.comparisonPng(pr), 'Feito no LoomisFlow Studio')),
-            _action(Icons.movie_creation_outlined, 'Compartilhar time-lapse (GIF animado)',
+            _action(Icons.movie_creation_outlined, 'Compartilhar time-lapse (vídeo MP4)',
+                _working
+                    ? null
+                    : () => _export(
+                          () => Exporter.timelapse(pr,
+                              onProgress: (v) => _progress.value = v),
+                          'Time-lapse feito no LoomisFlow Studio',
+                        )),
+            _action(Icons.gif_box_outlined, 'Compartilhar time-lapse (GIF animado)',
                 _working
                     ? null
                     : () => _export(

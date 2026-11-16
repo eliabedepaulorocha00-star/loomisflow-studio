@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 
-import '../core/loomis_guide.dart';
 import '../core/spring.dart';
 import '../core/theme.dart';
 
-/// Barra interativa dos 8 passos: arraste livremente (as camadas aparecem com fade)
+/// Barra interativa dos passos: arraste livremente (as camadas aparecem com fade)
 /// e, ao soltar, a barra "encaixa" no passo mais próximo com física de mola.
+/// [names] define quantos passos existem (rosto: 11, corpo: 7).
 class StepSlider extends StatefulWidget {
-  const StepSlider({super.key, required this.value, required this.onChanged, this.onEnd});
+  const StepSlider({
+    super.key,
+    required this.value,
+    required this.names,
+    required this.onChanged,
+    this.onEnd,
+  });
 
   final double value;
+  final List<String> names;
   final ValueChanged<double> onChanged;
   final ValueChanged<double>? onEnd;
 
@@ -23,11 +30,13 @@ class _StepSliderState extends State<StepSlider>
       AnimationController.unbounded(vsync: this);
   bool _dragging = false;
 
+  double get _max => (widget.names.length - 1).toDouble();
+
   @override
   void initState() {
     super.initState();
     _snap.addListener(() {
-      if (!_dragging) widget.onChanged(_snap.value.clamp(0.0, kMaxStep));
+      if (!_dragging) widget.onChanged(_snap.value.clamp(0.0, _max).toDouble());
     });
   }
 
@@ -39,7 +48,8 @@ class _StepSliderState extends State<StepSlider>
 
   @override
   Widget build(BuildContext context) {
-    final idx = widget.value.round().clamp(0, kStepCount - 1);
+    final n = widget.names.length;
+    final idx = widget.value.round().clamp(0, n - 1);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -51,7 +61,7 @@ class _StepSliderState extends State<StepSlider>
                 color: Palette.surfaceHi,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text('${idx + 1}/$kStepCount',
+              child: Text('${idx + 1}/$n',
                   style: const TextStyle(
                       fontSize: 12, color: Palette.accent, fontWeight: FontWeight.w600)),
             ),
@@ -60,8 +70,8 @@ class _StepSliderState extends State<StepSlider>
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
                 child: Text(
-                  kStepNames[idx],
-                  key: ValueKey(idx),
+                  widget.names[idx],
+                  key: ValueKey('$n-$idx'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -75,10 +85,10 @@ class _StepSliderState extends State<StepSlider>
             tickMarkShape: SliderTickMarkShape.noTickMark,
           ),
           child: Slider(
-            value: widget.value.clamp(0.0, kMaxStep),
+            value: widget.value.clamp(0.0, _max).toDouble(),
             min: 0,
-            max: kMaxStep,
-            divisions: (kStepCount - 1) * 8, // fração fina; ticks discretos não aparecem
+            max: _max,
+            divisions: (n - 1) * 8,
             onChangeStart: (_) {
               _dragging = true;
               _snap.stop();

@@ -8,13 +8,16 @@ const List<String> kStepNames = [
   'Linhas central e das sobrancelhas',
   'Terços: cabelo, nariz e queixo',
   'Mandíbula, queixo e orelhas',
-  'Posicionamento dos traços',
+  'Pescoço e ombros',
+  'Olhos e sobrancelhas',
+  'Nariz e boca',
+  'Massa do cabelo',
   'Contorno e detalhes',
   'Guia de sombreamento',
 ];
 
-const int kStepCount = 8;
-const double kMaxStep = 7;
+const int kStepCount = 11;
+const double kMaxStep = 10;
 
 /// Medidas cruas do rosto (em pixels da imagem), independentes do ML Kit.
 class FaceMeasurements {

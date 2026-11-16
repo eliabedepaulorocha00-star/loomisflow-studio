@@ -53,9 +53,9 @@ class TracePainter extends CustomPainter {
           color: const Color(0xFF3A6BFF), opacity: 0.45, lineScale: screenLine);
     }
     if (m.guideOpacity > 0.01) {
-      paintGuide(
+      paintProjectGuide(
         canvas,
-        g,
+        m.project,
         m.step,
         color: const Color(0xFF00B88A),
         opacity: m.guideOpacity,
