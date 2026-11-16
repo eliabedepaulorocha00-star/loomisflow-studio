@@ -67,6 +67,17 @@ jobs:
                 }
               }
             }
+
+            // plugins antigos compilam contra SDK < 34 e quebram com dependências novas
+            afterEvaluate { p ->
+              def android = p.extensions.findByName('android')
+              if (android != null && p.plugins.hasPlugin('com.android.library')) {
+                try {
+                  def cur = android.compileSdk
+                  if (cur == null || cur < 36) { android.compileSdk = 36 }
+                } catch (Throwable e) { println("compileSdk: ${e}") }
+              }
+            }
           }
           GRADLE
 
