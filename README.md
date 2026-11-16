@@ -139,3 +139,9 @@ Sugestão: MIT ou GPL-3.0 (escolha e adicione o arquivo `LICENSE`). As dependên
   respeite os direitos do autor ao compartilhar.
 - Navegação inferior agora tem 4 abas: Estúdio · Referências · Pesquisar · Progresso.
 - Detecção de rosto: segunda tentativa em modo simples e, se falhar, o motivo aparece na tela do Estúdio.
+
+## Guias (build 12)
+
+- **Rosto: 17 passos** — esfera, planos, terços, mandíbula/orelhas, planos do rosto, pescoço, ombros, regra dos cinco olhos, olhos, sobrancelhas, nariz, boca, cabelo, expressão, contorno e sombreamento.
+- **Corpo inteiro: 13 passos** — linha de ação com régua em cabeças, eixos de equilíbrio e gravidade, cabeça, pescoço/ombros, caixa torácica e coluna, pelve e cintura, articulações, volumes, músculos, mãos, pés, marcos anatômicos e sombreamento.
+- Se a pose não for detectada, o app usa um **modelo de corpo de 8 cabeças** para ajustar com os gestos (menu "Corpo inteiro (modelo para ajustar)").
