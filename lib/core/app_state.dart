@@ -166,24 +166,55 @@ class AppState extends ChangeNotifier {
         if (f != null) {
           figure = f.completed().withStyle(st);
           note = '';
-        } else if (force != GuideKind.bodyTemplate && m != null && guide.detected) {
-          // pose não achada, mas o rosto sim: o corpo nasce a partir da cabeça
-          final top = guide.center.dy - guide.radius;
-          final hh = guide.chinY - top;
-          final hc = guide.toImage(Offset(guide.center.dx, (guide.chinY + top) / 2));
-          figure = FigureGuide.template(size, style: st, headCenter: hc, headH: hh);
-          note = 'Pose não detectada — montei o corpo a partir do rosto. '
-              'Use "Ajustar guia" para encaixar.';
         } else {
-          figure = FigureGuide.template(size, style: st);
+          // sem pose: tenta o rosto (se o corpo coubrir na foto), depois o
+          // contorno do personagem sobre o fundo, depois a foto inteira
+          FigureGuide? built;
+          var how = '';
+          if (force != GuideKind.bodyTemplate && m != null && guide.detected) {
+            final top = guide.center.dy - guide.radius;
+            final hh = guide.chinY - top;
+            final hc = guide.toImage(Offset(guide.center.dx, (guide.chinY + top) / 2));
+            final bottom = hc.dy - hh * 0.5 + hh * st.spec.total;
+            if (bottom <= size.height * 1.12 && hh > size.height * 0.05) {
+              built = FigureGuide.template(size, style: st, headCenter: hc, headH: hh);
+              how = 'a partir do rosto';
+            }
+          }
+          if (built == null) {
+            final sb = await _subject(path);
+            if (sb != null) {
+              built = FigureGuide.template(size, style: st, fit: sb);
+              how = 'ajustado ao personagem';
+            }
+          }
+          if (built == null) {
+            built = FigureGuide.template(size, style: st);
+            how = 'na foto inteira';
+          }
+          figure = built;
           note = force == GuideKind.bodyTemplate
               ? ''
-              : 'Pose não detectada — usei o modelo de corpo inteiro. '
-                  'Mova, escale e gire com "Ajustar guia" até encaixar.';
+              : 'Pose não detectada — montei o corpo $how. '
+                  'Use "Ajustar guia" para encaixar melhor.';
         }
       }
     }
     return _Analysis(guide, figure, note);
+  }
+
+  /// Retângulo (em pixels da imagem) onde está o personagem, ou null.
+  Future<Rect?> _subject(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final dec = await _decode(bytes);
+      final w = dec.width.toDouble(), h = dec.height.toDouble();
+      final f = await compute(subjectBounds, bytes);
+      if (f == null) return null;
+      return Rect.fromLTRB(f[0] * w, f[1] * h, f[2] * w, f[3] * h);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> open(Project pr) async {

@@ -180,11 +180,14 @@ class FigureGuide {
     BodyStyle style = BodyStyle.male,
     Offset? headCenter,
     double? headH,
+    Rect? fit,
   }) {
     final sp = style.spec;
-    final hh = headH ?? size.height * 0.88 / sp.total;
-    final top = headCenter != null ? headCenter.dy - hh * 0.5 : size.height * 0.06;
-    final cx = headCenter?.dx ?? size.width / 2;
+    final hh = headH ?? (fit != null ? fit.height / sp.total : size.height * 0.88 / sp.total);
+    final top = headCenter != null
+        ? headCenter.dy - hh * 0.5
+        : (fit != null ? fit.top : size.height * 0.06);
+    final cx = headCenter?.dx ?? (fit != null ? fit.center.dx : size.width / 2);
     Offset o(double dx, double y) => Offset(cx + dx * hh, top + y * hh);
 
     // [ombro x, ombro y, quadril x, quadril y, cotovelo x/y, punho x/y, mão y,

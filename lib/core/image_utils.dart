@@ -71,3 +71,71 @@ Uint8List padForPose(Uint8List jpeg) {
   img.compositeImage(out, src, dstX: padX, dstY: padY);
   return Uint8List.fromList(img.encodeJpg(out, quality: 90));
 }
+
+/// Acha onde está o "assunto" da imagem comparando com a cor do fundo (borda).
+/// Devolve [esq, topo, dir, base] em frações 0..1, ou null se não houver
+/// contraste claro (foto cheia, fundo complexo demais).
+List<double>? subjectBounds(Uint8List jpeg) {
+  var im = img.decodeImage(jpeg);
+  if (im == null) return null;
+  im = img.copyResize(im, width: 96);
+  final w = im.width, h = im.height;
+  var r = 0.0, g = 0.0, b = 0.0, n = 0;
+  void acc(int x, int y) {
+    final p = im!.getPixel(x, y);
+    r += p.r;
+    g += p.g;
+    b += p.b;
+    n++;
+  }
+
+  for (var x = 0; x < w; x++) {
+    acc(x, 0);
+    acc(x, 1);
+    acc(x, h - 1);
+    acc(x, h - 2);
+  }
+  for (var y = 0; y < h; y++) {
+    acc(0, y);
+    acc(1, y);
+    acc(w - 1, y);
+    acc(w - 2, y);
+  }
+  r /= n;
+  g /= n;
+  b /= n;
+  final rows = List<int>.filled(h, 0);
+  final cols = List<int>.filled(w, 0);
+  var total = 0;
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      final p = im.getPixel(x, y);
+      final d = (p.r - r).abs() + (p.g - g).abs() + (p.b - b).abs();
+      if (d > 70) {
+        rows[y]++;
+        cols[x]++;
+        total++;
+      }
+    }
+  }
+  final cover = total / (w * h);
+  if (cover < 0.02 || cover > 0.85) return null;
+  int first(List<int> a, int min) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] >= min) return i;
+    }
+    return 0;
+  }
+
+  int last(List<int> a, int min) {
+    for (var i = a.length - 1; i >= 0; i--) {
+      if (a[i] >= min) return i;
+    }
+    return a.length - 1;
+  }
+
+  final top = first(rows, 2), bottom = last(rows, 2);
+  final left = first(cols, 2), right = last(cols, 2);
+  if (bottom - top < h * 0.2) return null;
+  return [left / w, top / h, (right + 1) / w, (bottom + 1) / h];
+}

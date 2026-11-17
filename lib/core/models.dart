@@ -85,7 +85,8 @@ class Project {
   }
 
   /// Usado pelos painters para saber se precisam redesenhar.
-  int get adjSig => Object.hash(adjDx, adjDy, adjScale, adjRot, figure != null);
+  int get adjSig => Object.hash(adjDx, adjDy, adjScale, adjRot, identityHashCode(figure),
+      figure?.style.index, identityHashCode(guide));
 
   /// Aplica o ajuste manual ao canvas (translada, gira e escala em torno do pivô).
   void applyAdjust(Canvas canvas) {
